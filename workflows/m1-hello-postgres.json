@@ -1,0 +1,66 @@
+{
+  "name": "M1 - Hello Postgres",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        -32
+      ],
+      "id": "233e7e1d-2fe3-4d19-a5c0-7ab6a754d58d",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO hello_test (note) VALUES ($1) RETURNING *;",
+        "options": {
+          "queryReplacement": "Hello from n8n"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        -48,
+        -32
+      ],
+      "id": "ad38cc2b-4ca1-4abc-9f8f-fedf9b9552c1",
+      "name": "MetroSupply DB (local)",
+      "credentials": {
+        "postgres": {
+          "id": "ddauxgkz57Ck87Wu",
+          "name": "MetroSupply DB (local)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "MetroSupply DB (local)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9b404877-d47a-4c74-a10a-7c2d18d46ae6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fe483d41cb6779ac784c0301a186e3eec1343b6b901079009d391be844c2642c"
+  },
+  "nodeGroups": [],
+  "id": "wpaK193VAripCKdw",
+  "tags": []
+}
