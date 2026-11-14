@@ -18,6 +18,10 @@ for file in db/migrations/*.sql; do
     echo "skip   $name"
     continue
   fi
+  if [ ! -s "$file" ]; then
+    echo "ERROR  $name is empty - fix the file, then run again"
+    exit 1
+  fi
   echo "apply  $name"
   { cat "$file"; echo; echo "INSERT INTO schema_migrations (filename) VALUES ('$name');"; } \
     | "${PSQL[@]}" --single-transaction
