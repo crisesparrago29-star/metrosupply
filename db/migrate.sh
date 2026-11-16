@@ -3,8 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+DB="${MIGRATE_DB:-metrosupply}"
+echo "Database: $DB"
+
 PSQL=(docker compose exec -T -e PGOPTIONS=-cclient_min_messages=warning
-      postgres psql -U metro_admin -d metrosupply -v ON_ERROR_STOP=1 -q)
+      postgres psql -U metro_admin -d "$DB" -v ON_ERROR_STOP=1 -q)
 
 "${PSQL[@]}" -c "CREATE TABLE IF NOT EXISTS schema_migrations (
   filename   text PRIMARY KEY,
