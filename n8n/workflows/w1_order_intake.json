@@ -38,7 +38,7 @@
         "operation": "executeQuery",
         "query": "SELECT event_id, is_new FROM record_intake_event('form', $1, $2);",
         "options": {
-          "queryReplacement": "={{ [ ($json['Customer code'].trim() + '/' + $json['PO number'].trim()).toUpperCase() + '#' + $json['Order lines'].trim().hash('sha256').slice(0, 12), 'Customer: ' + $json['Customer code'] + '\\nPO: ' + $json['PO number'] + '\\n' + $json['Order lines'] ] }}"
+          "queryReplacement": "={{ [ ($json['Customer code'].trim() + '/' + $json['PO number'].trim()).toUpperCase() + '#' + $json['Order lines'].split('\\n').map(l => l.trim().replace(/\\s+/g, ' ')).filter(l => l !== '').join('\\n').toLowerCase().hash('sha256').slice(0, 12), 'Customer: ' + $json['Customer code'] + '\\nPO: ' + $json['PO number'] + '\\n' + $json['Order lines'] ] }}"
         }
       },
       "type": "n8n-nodes-base.postgres",
@@ -64,8 +64,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        448,
-        -96
+        496,
+        -224
       ],
       "id": "bccad602-a050-4fd2-8172-e078d31553d7",
       "name": "Read order lines"
@@ -107,8 +107,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.4,
       "position": [
-        672,
-        -96
+        720,
+        -224
       ],
       "id": "5a38e0e0-89f9-44a2-bfe5-1651f4b2f53f",
       "name": "Lines OK?"
@@ -124,8 +124,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.8,
       "position": [
-        880,
-        -224
+        1040,
+        -528
       ],
       "id": "013c0133-2e84-4aed-82b7-cd2e6ac82bd2",
       "name": "Create draft order",
@@ -148,8 +148,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.8,
       "position": [
-        1120,
-        -240
+        1440,
+        -544
       ],
       "id": "5a5887b1-93ff-410e-a6a8-bbb64a57bf4e",
       "name": "Get problems",
@@ -171,8 +171,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1328,
-        -256
+        1648,
+        -560
       ],
       "id": "ec65da77-e849-4e98-b7c0-e4d06933e16c",
       "name": "Show draft result",
@@ -188,8 +188,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        880,
-        64
+        1024,
+        -112
       ],
       "id": "e6f8b885-9d13-41fe-a5c8-dee05c1c1bd5",
       "name": "Show what to fix",
@@ -205,8 +205,8 @@
       "type": "n8n-nodes-base.form",
       "typeVersion": 2.5,
       "position": [
-        1264,
-        304
+        1504,
+        16
       ],
       "id": "60e2dbef-e1e6-4601-8a0d-9454c38ab89b",
       "name": "Show intake refusal",
@@ -315,7 +315,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "7bc3933d-5f51-45df-8225-1ddb93299d54",
+  "versionId": "40e0046e-cbdc-45cd-822f-bc68521c9e56",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "fe483d41cb6779ac784c0301a186e3eec1343b6b901079009d391be844c2642c"
