@@ -1,0 +1,326 @@
+{
+  "name": "W1 - Order intake",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "MetroSupply - New order",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Customer code",
+              "placeholder": "Bayview"
+            },
+            {
+              "fieldLabel": "PO number",
+              "placeholder": "PO-1234"
+            },
+            {
+              "fieldLabel": "Order lines",
+              "fieldType": "textarea",
+              "placeholder": "12 jugs hand soap"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "27bc184a-3e29-44f6-8647-6e019d95ebe5",
+      "name": "MetroSupply - New order",
+      "webhookId": "c1aac44b-f5aa-4bb0-8145-bdccb669fbdc"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT event_id, is_new FROM record_intake_event('form', $1, $2);",
+        "options": {
+          "queryReplacement": "={{ [ ($json['Customer code'].trim() + '/' + $json['PO number'].trim()).toUpperCase() + '#' + $json['Order lines'].trim().hash('sha256').slice(0, 12), 'Customer: ' + $json['Customer code'] + '\\nPO: ' + $json['PO number'] + '\\n' + $json['Order lines'] ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        224,
+        0
+      ],
+      "id": "c357662f-8d14-4801-949b-d31fcc0d5ec5",
+      "name": "Save message once",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn the typed order lines into the list the database expects.\n// Each line must be:  quantity unit product   e.g. \"12 jugs hand soap\"\n\nconst form  = $('MetroSupply - New order').first().json;   // the form answers\nconst saved = $input.first().json;                     // {event_id, is_new} from \"Save message once\"\n\nconst lines = [];      // lines we could read\nconst problems = [];   // lines we could not read\n\nform['Order lines'].split('\\n').forEach((raw, i) => {\n  const text = raw.trim();\n  if (text === '') return;                                      // skip empty lines\n  const match = text.match(/^(\\d+(?:\\.\\d+)?)\\s+(\\S+)\\s+(.+)$/); // quantity, unit, product\n  if (!match) {\n    problems.push(`Line ${i + 1} \"${text}\": write it as  quantity unit product  (e.g. 12 jugs hand soap)`);\n    return;\n  }\n  lines.push({ qty: Number(match[1]), unit: match[2], product: match[3] });\n});\n\nreturn [{\n  json: {\n    event_id: saved.event_id,\n    is_new: saved.is_new,\n    customer_code: form['Customer code'].trim().toUpperCase(),\n    po_number: form['PO number'].trim(),\n    lines: JSON.stringify(lines),\n    line_count: lines.length,\n    problems,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "bccad602-a050-4fd2-8172-e078d31553d7",
+      "name": "Read order lines"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "12ebaf91-2a1e-4e9b-9401-15a64930c411",
+              "leftValue": "={{ $json.problems }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "09a78d90-3dc4-42ba-a644-71633550e783",
+              "leftValue": "={{ $json.line_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "5a38e0e0-89f9-44a2-bfe5-1651f4b2f53f",
+      "name": "Lines OK?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT draft_order_id, draft_status, draft_total, problems AS problem_count\nFROM create_draft_order($1::bigint, $2, $3, $4::jsonb);",
+        "options": {
+          "queryReplacement": "={{ [ $json.event_id, $json.customer_code, $json.po_number, $json.lines ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        880,
+        -224
+      ],
+      "id": "013c0133-2e84-4aed-82b7-cd2e6ac82bd2",
+      "name": "Create draft order",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT coalesce(string_agg(message, E'\\n' ORDER BY id), 'None') AS problem_list\nFROM exceptions\nWHERE order_id = $1::bigint AND status = 'open';",
+        "options": {
+          "queryReplacement": "={{ [ $json.draft_order_id ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        1120,
+        -240
+      ],
+      "id": "5a5887b1-93ff-410e-a6a8-bbb64a57bf4e",
+      "name": "Get problems",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "=Order {{ $('Create draft order').first().json.draft_order_id }}: {{ $('Create draft order').first().json.draft_status }}",
+        "completionMessage": "=Total: ₱{{ $('Create draft order').first().json.draft_total }} (VAT included)\\nProblems found: {{ $('Create draft order').first().json.problem_count }}\\n{{ $json.problem_list }}\\n\\nNo stock is reserved yet. An approver must approve this order first.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1328,
+        -256
+      ],
+      "id": "ec65da77-e849-4e98-b7c0-e4d06933e16c",
+      "name": "Show draft result",
+      "webhookId": "914b48fd-112f-4f6f-b83c-1e4dbaf93aa0"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Please fix the order lines",
+        "completionMessage": "={{ $json.problems.join('\\n') }}\\n\\nNo order was created. Fix the line(s) and submit the order again.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        64
+      ],
+      "id": "e6f8b885-9d13-41fe-a5c8-dee05c1c1bd5",
+      "name": "Show what to fix",
+      "webhookId": "4fd8a05f-2eb5-4885-a2d0-57822b425df5"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Order not accepted",
+        "completionMessage": "={{ $json.message }}\\n\\nNo order was created. Check the customer code and PO number, then try again.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        304
+      ],
+      "id": "60e2dbef-e1e6-4601-8a0d-9454c38ab89b",
+      "name": "Show intake refusal",
+      "webhookId": "d434f338-9b2c-4117-b614-aed3db214df9"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "MetroSupply - New order": {
+      "main": [
+        [
+          {
+            "node": "Save message once",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save message once": {
+      "main": [
+        [
+          {
+            "node": "Read order lines",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show intake refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read order lines": {
+      "main": [
+        [
+          {
+            "node": "Lines OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lines OK?": {
+      "main": [
+        [
+          {
+            "node": "Create draft order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show what to fix",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get problems": {
+      "main": [
+        [
+          {
+            "node": "Show draft result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show intake refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create draft order": {
+      "main": [
+        [
+          {
+            "node": "Get problems",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show intake refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7bc3933d-5f51-45df-8225-1ddb93299d54",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fe483d41cb6779ac784c0301a186e3eec1343b6b901079009d391be844c2642c"
+  },
+  "nodeGroups": [],
+  "id": "GX8qk0FVJTpqz0LG",
+  "tags": []
+}

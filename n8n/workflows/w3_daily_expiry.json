@@ -1,0 +1,75 @@
+{
+  "name": "W3 - Daily expiry",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "f6b42be3-a70e-498e-b86e-2be860cb8ff7",
+      "name": "Every day at 9:00"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT expired_order_id, reservations_expired FROM expire_reservations();",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        224,
+        0
+      ],
+      "id": "3d4608cd-b2e3-469b-8eaa-8e3fd86f1899",
+      "name": "Expire reservations",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every day at 9:00": {
+      "main": [
+        [
+          {
+            "node": "Expire reservations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "1e5ed75e-efe0-4154-b88e-3b230e9a62fb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fe483d41cb6779ac784c0301a186e3eec1343b6b901079009d391be844c2642c"
+  },
+  "nodeGroups": [],
+  "id": "8hxBFto3nqBbtniv",
+  "tags": []
+}

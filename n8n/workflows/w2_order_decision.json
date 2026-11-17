@@ -1,0 +1,395 @@
+{
+  "name": "W2 - Order decision",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "MetroSupply - Order decision",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Order number",
+              "fieldType": "number",
+              "placeholder": "17"
+            },
+            {
+              "fieldLabel": "Your username",
+              "placeholder": "ben.approver"
+            },
+            {
+              "fieldLabel": "Decision",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "approve"
+                  },
+                  {
+                    "option": "reject"
+                  },
+                  {
+                    "option": "cancel"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Reason",
+              "fieldType": "textarea",
+              "placeholder": "Required for reject or cancel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e8b671ae-d2a6-4daa-b9d5-e6512c134b68",
+      "name": "MetroSupply - Order decision",
+      "webhookId": "87ca2403-4e55-4a66-9462-c04b8438678b"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Decision }}",
+                    "rightValue": "approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "46a0850a-cfe1-4aae-b3f7-c6f7f5427a62"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "c1d1f85f-7add-4822-a1eb-4c5f571eef82",
+                    "leftValue": "={{ $json.Decision }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "c5b643ed-27da-4159-ab6e-62d92c4cc66a",
+                    "leftValue": "={{ $json.Decision }}",
+                    "rightValue": "cancel",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancel"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "none",
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "a2ce998f-0434-4ff6-a5b6-71a5eba8641f",
+      "name": "Which decision?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT result_order_id, result_status, approvals_have, approvals_needed,\n       lines_reserved, lines_backordered\nFROM approve_order($1::bigint, $2);",
+        "options": {
+          "queryReplacement": "={{ [ $json['Order number'], $json['Your username'].trim().toLowerCase() ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        608,
+        -272
+      ],
+      "id": "72e164e4-2d7a-4af3-a422-cd6cee63d635",
+      "name": "Approve order",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "=Order {{ $json.result_order_id }}: {{ $json.result_status }}",
+        "completionMessage": "=Approvals: {{ $json.approvals_have }} of {{ $json.approvals_needed }} needed\\nLines reserved: {{ $json.lines_reserved }}\\nLines backordered: {{ $json.lines_backordered }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        -288
+      ],
+      "id": "89bef77e-6aa3-422f-8c91-cedc07ba32b6",
+      "name": "Show approval result",
+      "webhookId": "6868a236-826d-416d-a0e8-5b316c38035b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT result_order_id, result_status FROM reject_order($1::bigint, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json['Order number'], $json['Your username'].trim().toLowerCase(), ($json['Reason'] || '').trim() ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        624,
+        0
+      ],
+      "id": "e9ca2a7e-8c0c-450c-a288-998398a56b81",
+      "name": "Reject order",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "=Order {{ $json.result_order_id }}: {{ $json.result_status }}",
+        "completionMessage": "=Reason recorded: {{ $('Which decision?').first().json.Reason }}\\nNo stock was reserved for this order, so nothing needed to be released.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        -16
+      ],
+      "id": "34503818-4bce-49cf-9475-bbd88a6b62b8",
+      "name": "Show reject result",
+      "webhookId": "e1055e22-0d79-4630-82f3-295f0e2dd07e"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT result_order_id, result_status, reservations_released\nFROM cancel_order($1::bigint, $2, $3);",
+        "options": {
+          "queryReplacement": "={{ [ $json['Order number'], $json['Your username'].trim().toLowerCase(), ($json['Reason'] || '').trim() ] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        640,
+        304
+      ],
+      "id": "c36e292d-7246-4ad0-b2b3-7b70d74620b3",
+      "name": "Cancel order",
+      "credentials": {
+        "postgres": {
+          "id": "mb2hStgm5BZzbkun",
+          "name": "MetroSupply DB (app_n8n)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "=Order {{ $json.result_order_id }}: {{ $json.result_status }}",
+        "completionMessage": "=Reservations released: {{ $json.reservations_released }}\\nThat stock is available again.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        896,
+        144
+      ],
+      "id": "ea77bb7e-65a0-4f95-9499-332971a2d1ac",
+      "name": "Show cancel result",
+      "webhookId": "e213d5c5-65d5-4a74-bace-20dface046a4"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Request refused",
+        "completionMessage": "={{ $json.message }}\\n\\nNothing was changed. Check the order number, your username and the reason, then try again.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        1424,
+        16
+      ],
+      "id": "22ab126f-498e-48b1-8ddd-86a6535d2523",
+      "name": "Show refusal",
+      "webhookId": "2fbb25e8-4bb5-410c-b2b2-c7cca633ee8a"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "MetroSupply - Order decision": {
+      "main": [
+        [
+          {
+            "node": "Which decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Which decision?": {
+      "main": [
+        [
+          {
+            "node": "Approve order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reject order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cancel order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approve order": {
+      "main": [
+        [
+          {
+            "node": "Show approval result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reject order": {
+      "main": [
+        [
+          {
+            "node": "Show reject result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel order": {
+      "main": [
+        [
+          {
+            "node": "Show cancel result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Show refusal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e517396b-2fe7-479b-a5f7-445ac30fcbcf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fe483d41cb6779ac784c0301a186e3eec1343b6b901079009d391be844c2642c"
+  },
+  "nodeGroups": [],
+  "id": "qlRUpgVLqy1f5roo",
+  "tags": []
+}
