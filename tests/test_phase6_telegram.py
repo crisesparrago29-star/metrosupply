@@ -16,9 +16,9 @@ def who(conn, telegram_id):
 
 def test_unknown_telegram_id_returns_nothing(app_db):
     assert who(app_db, 1) == []
-    
 
-    def test_linked_user_is_found_with_role(db):
+
+def test_linked_user_is_found_with_role(db):
     db.execute("UPDATE app_users SET telegram_user_id = %s WHERE username = 'ben.approver'",
                (TEST_TELEGRAM_ID,))
     assert who(db, TEST_TELEGRAM_ID) == [("ben.approver", "approver")]
